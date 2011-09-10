@@ -148,10 +148,10 @@ class Document(Gtk.Window):
         self.page_tree.connect(
             'cursor-changed', lambda tree: self.selected_page())
 
-        name_column = Gtk.TreeViewColumn("Page")
+        name_column = Gtk.TreeViewColumn('Page')
         name_cell = Gtk.CellRendererText()
         name_column.pack_start(name_cell, True)
-        name_column.add_attribute(name_cell, "text", 1)
+        name_column.add_attribute(name_cell, 'text', 1)
         self.page_tree.append_column(name_column)
 
         self.page_view.pack_start(self.page_tree, True, True, 0)
