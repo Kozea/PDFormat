@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
 # This file is part of PDFormat - PDF Editor
 # Copyright © 2011 Kozea
 #
@@ -34,10 +36,26 @@ class Source(object):
 
 class Page(Gtk.ToolItemGroup):
     """Document page."""
-    def __init__(self, source=None, rectangle=None):
+    def __init__(self, document, source=None, rectangle=None):
         super(Page, self).__init__()
+        self.document = document
         self.source = source
         self.rectangle = rectangle
+        if not self.source:
+            self.set_source()
+
+    def set_source(self):
+        """Ask the user to set the page source."""
+        def _callback(dialog, response):
+            if response == Gtk.ResponseType.ACCEPT:
+                self.source = Source(dialog.get_filename(), 0)
+            dialog.destroy()
+
+        dialog = Gtk.FileChooserDialog(
+            'Choose PDF', self.document, Gtk.FileChooserAction.OPEN,
+            (Gtk.STOCK_OPEN, Gtk.ResponseType.ACCEPT))
+        dialog.connect('response', _callback)
+        dialog.run()
 
 
 class Document(Gtk.Window):
@@ -59,15 +77,19 @@ class Document(Gtk.Window):
 
     def add_page(self, tree):
         """Add a new page in ``tree``."""
-        page = Page()
+        page = Page(self)
         page_length = self.pages.iter_n_children(None)
         self.pages.insert(page_length, (page, 'Page %i' % (page_length + 1)))
         tree.set_cursor(Gtk.TreePath('%i' % page_length), None, False)
 
     def selected_page(self, tree):
         """Called when a page is selected."""
-        print(tree.get_cursor()[0].get_indices()[0])
+        self.get_page(tree.get_cursor()[0].get_indices()[0])
         self.image_view.set_sensitive(True)
+
+    def get_page(self, index):
+        """Get page at ``index``."""
+        return self.pages[index][0]
 
     def _draw(self):
         """Draw the window."""
