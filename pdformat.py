@@ -75,21 +75,25 @@ class Document(Gtk.Window):
 
         Gtk.main()
 
-    def add_page(self, tree):
+    def add_page(self):
         """Add a new page in ``tree``."""
         page = Page(self)
         page_length = self.pages.iter_n_children(None)
         self.pages.insert(page_length, (page, 'Page %i' % (page_length + 1)))
-        tree.set_cursor(Gtk.TreePath('%i' % page_length), None, False)
+        self.page_tree.set_cursor(
+            Gtk.TreePath('%i' % page_length), None, False)
 
-    def selected_page(self, tree):
+    def selected_page(self):
         """Called when a page is selected."""
-        self.get_page(tree.get_cursor()[0].get_indices()[0])
         self.image_view.set_sensitive(True)
 
     def get_page(self, index):
         """Get page at ``index``."""
         return self.pages[index][0]
+
+    def get_active_page(self):
+        """Get the page selected in the page selector."""
+        return self.get_page(self.page_tree.get_cursor()[0].get_indices()[0])
 
     def _draw(self):
         """Draw the window."""
@@ -107,6 +111,8 @@ class Document(Gtk.Window):
         toolbar = Gtk.Toolbar()
 
         change_document_button = Gtk.ToolButton()
+        change_document_button.connect(
+            'clicked', lambda button: self.get_active_page().set_source())
         change_document_button.set_label('Change Document')
         change_document_button.set_icon_name('document-open')
 
@@ -136,26 +142,26 @@ class Document(Gtk.Window):
         self.page_view = Gtk.VBox()
         pane.add2(self.page_view)
 
-        pages_tree = Gtk.TreeView()
-        pages_tree.set_model(self.pages)
-        pages_tree.set_reorderable(True)
-        pages_tree.connect('cursor-changed', self.selected_page)
+        self.page_tree = Gtk.TreeView()
+        self.page_tree.set_model(self.pages)
+        self.page_tree.set_reorderable(True)
+        self.page_tree.connect(
+            'cursor-changed', lambda tree: self.selected_page())
 
         name_column = Gtk.TreeViewColumn("Page")
         name_cell = Gtk.CellRendererText()
         name_column.pack_start(name_cell, True)
         name_column.add_attribute(name_cell, "text", 1)
-        pages_tree.append_column(name_column)
+        self.page_tree.append_column(name_column)
 
-        self.page_view.pack_start(pages_tree, True, True, 0)
+        self.page_view.pack_start(self.page_tree, True, True, 0)
 
         toolbar = Gtk.Toolbar()
         toolbar.get_style_context().add_class(Gtk.STYLE_CLASS_INLINE_TOOLBAR)
         toolbar.set_icon_size(1)
 
         add_button = Gtk.ToolButton()
-        add_button.connect(
-            'clicked', lambda button: self.add_page(pages_tree))
+        add_button.connect('clicked', lambda button: self.add_page())
         add_button.set_label('Add')
         add_button.set_icon_name('list-add-symbolic')
 
