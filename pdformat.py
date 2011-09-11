@@ -18,10 +18,13 @@
 # along with PDFormat.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import os
 import sys
 import collections
+from tempfile import NamedTemporaryFile
 
 from gi.repository import Gtk
+from ghostscript import Ghostscript
 
 
 class Rectangle(collections.namedtuple('x1', 'x2', 'y1', 'y2')):
@@ -29,9 +32,26 @@ class Rectangle(collections.namedtuple('x1', 'x2', 'y1', 'y2')):
 
 
 class Source(object):
-    def __init__(self, filename, page_number):
+    def __init__(self, document, filename, page_number):
+        self.document = document
         self.filename = filename
         self.page_number = page_number
+
+        temporary_file = NamedTemporaryFile()
+        args = [
+            "",
+            "-sstdout=%s" % os.devnull,
+            "-dNOPAUSE", "-dBATCH", "-dSAFER",
+            "-dFirstPage=%i" % self.page_number,
+            "-dLastPage=%i" % self.page_number,
+            "-dTextAlphaBits=4", "-dGraphicsAlphaBits=4",
+            "-sDEVICE=png16m",
+            "-r42",
+            "-sOutputFile=%s" % temporary_file.name,
+            "-f%s" % self.filename]
+        Ghostscript(*args)
+        self.document.image.set_from_file(temporary_file.name)
+        temporary_file.close()
 
 
 class Page(Gtk.ToolItemGroup):
@@ -48,7 +68,7 @@ class Page(Gtk.ToolItemGroup):
         """Ask the user to set the page source."""
         def _callback(dialog, response):
             if response == Gtk.ResponseType.ACCEPT:
-                self.source = Source(dialog.get_filename(), 0)
+                self.source = Source(self.document, dialog.get_filename(), 1)
             dialog.destroy()
 
         dialog = Gtk.FileChooserDialog(
@@ -135,8 +155,10 @@ class Document(Gtk.Window):
 
         self.image_view.pack_start(toolbar, False, True, 0)
 
-        scroll = Gtk.ScrolledWindow()
-        self.image_view.pack_start(scroll, True, True, 1)
+        image_container = Gtk.ScrolledWindow()
+        self.image_view.pack_start(image_container, True, True, 1)
+        self.image = Gtk.Image.new_from_file('')
+        image_container.add_with_viewport(self.image)
 
         # Pages
         self.page_view = Gtk.VBox()
