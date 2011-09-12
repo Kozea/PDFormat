@@ -37,7 +37,7 @@ class Source(object):
         self.filename = filename
         self.page_number = page_number
 
-        temporary_file = NamedTemporaryFile()
+        self._temporary_file = NamedTemporaryFile(delete=False)
         args = [
             "",
             "-sstdout=%s" % os.devnull,
@@ -47,17 +47,20 @@ class Source(object):
             "-dTextAlphaBits=4", "-dGraphicsAlphaBits=4",
             "-sDEVICE=png16m",
             "-r42",
-            "-sOutputFile=%s" % temporary_file.name,
+            "-sOutputFile=%s" % self._temporary_file.name,
             "-f%s" % self.filename]
         Ghostscript(*args)
-        self.document.image.set_from_file(temporary_file.name)
-        temporary_file.close()
+        self._temporary_file.close()
+        self.draw()
+
+    def draw(self):
+        """Draw the source."""
+        self.document.image.set_from_file(self._temporary_file.name)
 
 
-class Page(Gtk.ToolItemGroup):
+class Page(object):
     """Document page."""
     def __init__(self, document, source=None, rectangle=None):
-        super(Page, self).__init__()
         self.document = document
         self.source = source
         self.rectangle = rectangle
@@ -103,9 +106,15 @@ class Document(Gtk.Window):
         self.page_tree.set_cursor(
             Gtk.TreePath('%i' % page_length), None, False)
 
+    def remove_active_page(self):
+        """Remove the selected page."""
+        self.pages.remove(self.pages.get_iter(self.page_tree.get_cursor()[0]))
+        self.page_tree.set_cursor(Gtk.TreePath('0'), None, False)
+
     def selected_page(self):
         """Called when a page is selected."""
         self.image_view.set_sensitive(True)
+        self.get_active_page().source.draw()
 
     def get_page(self, index):
         """Get page at ``index``."""
@@ -188,6 +197,8 @@ class Document(Gtk.Window):
         add_button.set_icon_name('list-add-symbolic')
 
         remove_button = Gtk.ToolButton()
+        remove_button.connect(
+            'clicked', lambda button: self.remove_active_page())
         remove_button.set_label('Remove')
         remove_button.set_icon_name('list-remove-symbolic')
 
